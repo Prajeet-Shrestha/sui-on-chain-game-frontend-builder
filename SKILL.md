@@ -1,18 +1,20 @@
 ---
 name: sui-on-chain-game-frontend-builder
-description: Build Vite + React + TypeScript frontends for on-chain Sui games — project setup, wallet connection, transaction building, data reading, game state rendering, real-time updates, and best practices.
+description: Build Vite + React + TypeScript frontends for on-chain Sui games — scaffolding, contract integration, wallet connection, transaction building, game state rendering, and best practices. Battle-tested across 8 game frontends.
 ---
 
 # Sui On-Chain Game Frontend Builder
 
-## 🚨 Mandatory First Step
+## 🚨 Mandatory First Steps
 
-**Before writing ANY Sui game frontend code, you MUST read these two files:**
+**Before writing ANY Sui game frontend code, you MUST read in order:**
 
-1. **Rule Zero** (below) — understand the core principles
+1. **Rule Zero** (below)
 2. **[dos_and_donts.md](references/dos_and_donts.md)** — avoid legacy imports and common pitfalls
+3. **[scaffolding_protocol.md](references/scaffolding_protocol.md)** — the step-by-step process you MUST follow
+4. **[contract_integration.md](references/contract_integration.md)** — how to read the Move contract and generate types/parsers/hooks
 
-Do NOT skip this step. Failing to read these will result in using deprecated APIs.
+Do NOT skip these. Failing to follow the protocol will produce broken frontends.
 
 ## Rule Zero
 
@@ -26,9 +28,9 @@ Always use `@mysten/dapp-kit-react` for React hooks/components, `@mysten/dapp-ki
 
 **Always:**
 - Use **Vite + React + TypeScript** (no Next.js — games are client-only SPAs)
-- Use `@mysten/dapp-kit-react` for wallet/client integration
-- Use `@mysten/dapp-kit-core` for `createDAppKit`
-- Use `SuiGrpcClient` for wallet/tx (via dApp Kit), `SuiJsonRpcClient` for standalone data reads
+- Follow the **Scaffolding Protocol** — do not invent the file creation order
+- Read the **Move contract first** before writing any TypeScript
+- Use templates from `templates/` for boilerplate files
 - Match frontend state models to on-chain Move structs
 - Use polling or subscriptions to keep state fresh
 
@@ -47,17 +49,54 @@ Always use `@mysten/dapp-kit-react` for React hooks/components, `@mysten/dapp-ki
 | `@tanstack/react-query` | `@tanstack/react-query` | Data fetching, caching, polling |
 | `zustand` | `zustand` | Client-side UI state (selected entity, modals) |
 
-```bash
-npm create vite@latest my-game -- --template react-ts
-cd my-game
-npm i @mysten/dapp-kit-react @mysten/sui @tanstack/react-query zustand
+## Scaffolding Protocol (Summary)
+
+Follow [scaffolding_protocol.md](references/scaffolding_protocol.md) for full details. The phases are:
+
 ```
+Phase 1: Read the Move contract → extract structs, functions, constants, shared objects
+Phase 2: Scaffold boilerplate → copy templates (main.tsx, dApp-kit.ts, suiClient.ts, etc.)
+Phase 3: Generate integration layer → constants.ts, types.ts, parsers.ts
+Phase 4: Generate hooks → useGameActions.ts, useGameSession.ts
+Phase 5: Build game components → App.tsx, GameBoard.tsx, Header.tsx, GameOver.tsx, index.css
+Phase 6: Install & verify → npm install && npm run dev
+```
+
+## Contract → Frontend Pipeline
+
+See [contract_integration.md](references/contract_integration.md) for the full workflow:
+
+```
+Move struct   → lib/types.ts      (TypeScript interfaces)
+Move consts   → constants.ts      (states, error codes, IDs)
+Move fields   → lib/parsers.ts    (JSON-RPC → typed objects)
+Move pub funs → hooks/useGameActions.ts  (PTB builders)
+```
+
+## Templates (Copy-Paste Boilerplate)
+
+Drop-in files extracted from 8 working game frontends:
+
+| Template | File it creates |
+|----------|----------------|
+| [main.tsx.md](templates/main.tsx.md) | `src/main.tsx` |
+| [dapp_kit.ts.md](templates/dapp_kit.ts.md) | `src/dApp-kit.ts` |
+| [sui_client.ts.md](templates/sui_client.ts.md) | `src/lib/suiClient.ts` |
+| [ui_store.ts.md](templates/ui_store.ts.md) | `src/stores/uiStore.ts` |
+| [constants.ts.md](templates/constants.ts.md) | `src/constants.ts` (skeleton) |
+| [use_game_actions.ts.md](templates/use_game_actions.ts.md) | `src/hooks/useGameActions.ts` |
+| [use_game_session.ts.md](templates/use_game_session.ts.md) | `src/hooks/useGameSession.ts` |
+| [vite_config.ts.md](templates/vite_config.ts.md) | `vite.config.ts` |
+| [index_html.md](templates/index_html.md) | `index.html` |
+| [package_json.md](templates/package_json.md) | `package.json` |
 
 ## Decision Matrix — What Should I Read?
 
 | I need to… | Read this reference |
 |------------|-------------------|
-| Scaffold a new Vite + React game project | [setup.md](references/setup.md) |
+| Create a new game frontend from scratch | [scaffolding_protocol.md](references/scaffolding_protocol.md) |
+| Read a Move contract and generate TS types/hooks | [contract_integration.md](references/contract_integration.md) |
+| Find patterns from existing games | [game_examples.md](references/game_examples.md) |
 | Organize files and folders | [project_structure.md](references/project_structure.md) |
 | Use React hooks for wallet/network/account | [hooks_api.md](references/hooks_api.md) |
 | Build and execute transactions (PTB) | [transaction_patterns.md](references/transaction_patterns.md) |
@@ -69,22 +108,22 @@ npm i @mysten/dapp-kit-react @mysten/sui @tanstack/react-query zustand
 | Format addresses, validate IDs, convert units | [utils.md](references/utils.md) |
 | Copy a working recipe for a common task | [common_recipes.md](references/common_recipes.md) |
 | Avoid common mistakes | [dos_and_donts.md](references/dos_and_donts.md) |
+| Set up project from scratch | [setup.md](references/setup.md) |
 
-## Quick-Start Checklist
+## Real Game Examples
 
-```
-1. npm create vite@latest my-game -- --template react-ts
-2. npm i @mysten/dapp-kit-react @mysten/sui @tanstack/react-query zustand
-3. Create src/dApp-kit.ts  → createDAppKit({ networks, createClient })
-4. Create src/lib/suiClient.ts → SuiJsonRpcClient for data reads
-5. Add `declare module` for type registration
-6. Create src/constants.ts → PACKAGE_ID, object IDs, game state enums
-7. Wrap app in <DAppKitProvider> + <QueryClientProvider>
-8. Add <ConnectButton /> to header
-9. Read game state with suiClient + React Query (useQuery + refetchInterval)
-10. Execute game actions with useDAppKit().signAndExecuteTransaction()
-11. Refresh state post-tx with waitForTransaction + refetchQueries
-```
+8 battle-tested frontends in `examples/`. See [game_examples.md](references/game_examples.md) for the full catalog.
+
+| Game | Best for learning |
+|------|------------------|
+| **virus_game** | Multi-step PTB, Phaser canvas, local simulation |
+| **sokoban** | Level select, directional input, local preview |
+| **card_crawler** | Card UI, animations, complex components |
+| **tactics_ogre** | Multi-entity, turn-based, many hooks |
+| **tetris_game** | Real-time tick, keyboard input |
+| **maze_game** | Pathfinding, fog of war |
+| **flappy_bird** | Physics loop, collision |
+| **sandbox_game** | Entity editor, creative mode |
 
 ## Prerequisite Skills
 

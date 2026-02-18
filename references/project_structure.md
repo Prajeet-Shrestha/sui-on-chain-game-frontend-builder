@@ -2,55 +2,44 @@
 
 ## Recommended Folder Layout
 
+Based on all 8 existing game frontends. Adjust component count to game complexity.
+
 ```
-src/
-├── dApp-kit.ts              # createDAppKit config + type registration
-├── constants.ts             # Package IDs, object IDs, network config
-├── main.tsx                 # Entry point with providers
-├── App.tsx                  # Router + top-level layout
-├── index.css                # Global styles
+frontend/
+├── index.html               # Entry HTML (Google Fonts, meta tags)
+├── package.json             # Dependencies (proven versions)
+├── vite.config.ts           # Vite config with base path
+├── tsconfig.json            # References tsconfig.app.json
+├── tsconfig.app.json        # TypeScript compiler options
 │
-├── contracts/               # Codegen output (auto-generated)
-│   └── game/
-│       ├── game_module.ts   # Generated move call functions
-│       └── utils/
-│           └── index.ts     # MoveStruct helpers
-│
-├── hooks/                   # Custom React hooks
-│   ├── useGameState.ts      # Read game session, world, grid
-│   ├── usePlayerEntity.ts   # Read player entity state
-│   ├── useGameActions.ts    # Execute game transactions
-│   └── useTurnState.ts      # Track whose turn it is
-│
-├── components/              # React components
-│   ├── layout/
-│   │   ├── Header.tsx       # Wallet connect + network badge
-│   │   └── GameLayout.tsx   # Main game layout wrapper
-│   │
-│   ├── game/
-│   │   ├── GameBoard.tsx    # Grid / board renderer
-│   │   ├── GameLobby.tsx    # Pre-game lobby (join, waiting)
-│   │   ├── GameOver.tsx     # Win/loss screen
-│   │   ├── PlayerHud.tsx    # Health, energy, status bars
-│   │   └── ActionBar.tsx    # Turn action buttons
-│   │
-│   ├── entities/
-│   │   ├── EntityCard.tsx   # Render an entity's stats
-│   │   └── GridCell.tsx     # Single cell in the grid
-│   │
-│   └── ui/                  # Reusable UI primitives
-│       ├── Button.tsx
-│       ├── Modal.tsx
-│       ├── ProgressBar.tsx
-│       └── StatusBadge.tsx
-│
-├── lib/                     # Non-React utilities
-│   ├── types.ts             # TypeScript types matching Move structs
-│   ├── parsers.ts           # Parse on-chain object data → typed objects
-│   └── gameLogic.ts         # Read-only calculations (display-only)
-│
-└── stores/                  # Client-side state (Zustand)
-    └── uiStore.ts           # UI state: selected entity, camera, modals
+└── src/
+    ├── main.tsx              # Entry point — providers (DO NOT MODIFY)
+    ├── dApp-kit.ts           # createDAppKit config + type registration
+    ├── constants.ts          # Package IDs, object IDs, states, error codes
+    ├── App.tsx               # Top-level layout + game state routing
+    ├── index.css             # All styles (premium, dark mode, animations)
+    │
+    ├── hooks/                # Custom React hooks
+    │   ├── useGameActions.ts # Execute game transactions (PTB builders)
+    │   └── useGameSession.ts # Read game state via React Query polling
+    │   # Optional: usePlayerEntity.ts, useTurnState.ts, useGrid.ts
+    │
+    ├── components/           # React components (game-specific)
+    │   ├── Header.tsx        # Wallet connect + game title
+    │   ├── GameBoard.tsx     # Grid / board renderer
+    │   └── GameOver.tsx      # Win/loss screen
+    │   # Optional: LevelSelect.tsx, ActionBar.tsx, PlayerHud.tsx, etc.
+    │
+    ├── lib/                  # Non-React utilities
+    │   ├── suiClient.ts      # SuiJsonRpcClient for data reads
+    │   ├── types.ts          # TypeScript interfaces matching Move structs
+    │   └── parsers.ts        # Parse on-chain JSON-RPC → typed objects
+    │   # Optional: localEngine.ts, cardLookup.ts, etc.
+    │
+    ├── stores/               # Client-side state (Zustand)
+    │   └── uiStore.ts        # UI state: sessionId, isPending, error
+    │
+    └── assets/               # Optional: images, sprites, sounds
 ```
 
 ## Key Principles
