@@ -12,7 +12,7 @@
 2. Extract the following (see [contract_integration.md](contract_integration.md) for details):
    - All `public struct` declarations → will become `lib/types.ts`
    - All `const` values (states, error codes) → will become `constants.ts`
-   - All `public fun` / `public entry fun` signatures → will become `hooks/useGameActions.ts`
+   - All `public fun` / `entry fun` signatures → will become `hooks/useGameActions.ts`
    - All shared objects created in `init()` → will become WORLD_ID, etc. in `constants.ts`
 
 ---

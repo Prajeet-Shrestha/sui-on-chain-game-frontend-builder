@@ -34,12 +34,12 @@ const EInvalidMove: u64 = 102;
 
 ### 1.3 Public Functions (→ `hooks/useGameActions.ts`)
 
-Find all `public fun` and `public entry fun` declarations:
+Find all `public fun` and `entry fun` declarations:
 
 ```move
 public fun start_game(world: &World, level: u8, ctx: &mut TxContext): GameSession
 public fun make_move(session: &mut GameSession, direction: u8, ctx: &TxContext)
-public entry fun start_and_share(world: &World, level: u8, ctx: &mut TxContext)
+entry fun start_and_share(world: &World, level: u8, ctx: &mut TxContext)
 ```
 
 ### 1.4 Events (→ optional, for real-time updates)
@@ -137,7 +137,7 @@ export function parseGameSession(
 
 ## Step 5: Generate hooks/useGameActions.ts
 
-For each `public fun` / `public entry fun` that modifies state:
+For each `public fun` / `entry fun` that modifies state:
 
 1. Identify the **function name** → becomes the hook method name
 2. Identify **arguments**:
