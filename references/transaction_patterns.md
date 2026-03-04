@@ -147,7 +147,7 @@ function MyComponent() {
     const digest = result.Transaction.digest;
 
     // Wait for finality before reading state
-    const txResult = await client.waitForTransaction({
+    const txResult = await client.core.waitForTransaction({
       digest,
       include: { effects: true },
     });
@@ -188,7 +188,7 @@ const { digest, effects } = result.Transaction;
 ## Extracting Created Objects from Effects
 
 ```typescript
-const txResult = await client.waitForTransaction({
+const txResult = await client.core.waitForTransaction({
   digest: result.Transaction.digest,
   include: { effects: true },
 });
@@ -261,13 +261,12 @@ export function useGameActions() {
 
     // Wait for finality before reading state.
     // Option A: Use waitForTransaction (preferred when available)
-    await client.waitForTransaction({
+    await client.core.waitForTransaction({
       digest: result.Transaction.digest,
       include: { effects: true },
     });
 
-    // Option B: Blind delay fallback (if using SuiJsonRpcClient for reads
-    // and waitForTransaction is not available on that client)
+    // Option B: Blind delay fallback (if waitForTransaction is not available)
     // await new Promise(r => setTimeout(r, 2000));
 
     // Use refetchQueries (not invalidateQueries) for games —
@@ -471,7 +470,7 @@ joinGame: async () => {
   const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
   if (result.FailedTransaction) throw new Error('Failed to join');
 
-  const txResult = await client.waitForTransaction({
+  const txResult = await client.core.waitForTransaction({
     digest: result.Transaction.digest,
     include: { effects: true },
   });

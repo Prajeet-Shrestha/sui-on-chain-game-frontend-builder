@@ -2,10 +2,11 @@
 
 ## Getting the Client
 
-For data reads, use the standalone `SuiJsonRpcClient` (see [client_api.md](client_api.md#suijsonrpcclient)):
+For data reads, use `useCurrentClient()` from dApp Kit or a standalone `SuiGrpcClient`:
 
 ```typescript
-import { suiClient } from '../lib/suiClient'; // SuiJsonRpcClient
+import { useCurrentClient } from '@mysten/dapp-kit-react';
+const client = useCurrentClient(); // gRPC client from dApp Kit
 ```
 
 For wallet-aware operations, use the dApp Kit client:
@@ -90,7 +91,7 @@ const ownedObjects = await client.core.getOwnedObjects({
 ### Wait for Transaction
 
 ```typescript
-const txResult = await client.waitForTransaction({
+const txResult = await client.core.waitForTransaction({
   digest: '...',
   include: { effects: true },
 });
@@ -103,13 +104,14 @@ const txResult = await client.waitForTransaction({
 ```typescript
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-const client = new SuiGrpcClient({ network: 'testnet', baseUrl: '...' });
+const client = new SuiGrpcClient({ network: 'testnet', baseUrl: 'https://fullnode.testnet.sui.io:443' });
 
-// State service
-const objects = await client.stateService.listOwnedObjects({ owner: '0x...' });
+// State service (uses { response } destructuring)
+const { response } = await client.stateService.listOwnedObjects({ owner: '0x...' });
+const { response: fields } = await client.stateService.listDynamicFields({ parent: '0x...' });
 
 // Ledger service
-const tx = await client.ledgerService.getTransaction({ digest: '...' });
+const { response: tx } = await client.ledgerService.getTransaction({ digest: '...' });
 ```
 
 ## GraphQL Client (Advanced)
@@ -199,22 +201,23 @@ function BalanceDisplay({ address }: { address: string }) {
 ```typescript
 // src/hooks/useGameState.ts
 import { useQuery } from '@tanstack/react-query';
-import { suiClient } from '../lib/suiClient';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { GAME_SESSION_ID } from '../constants';
 import { parseGameSession, type GameSession } from '../lib/parsers';
 
 export function useGameState() {
+  const client = useCurrentClient();
   return useQuery<GameSession>({
     queryKey: ['gameSession', GAME_SESSION_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({
-        id: GAME_SESSION_ID,
-        options: { showContent: true },
+      const { object } = await client.core.getObject({
+        objectId: GAME_SESSION_ID,
+        include: { json: true },
       });
-      if (res.data?.content?.dataType !== 'moveObject') {
+      if (!object?.json) {
         throw new Error('GameSession not found');
       }
-      return parseGameSession(res.data.content.fields as Record<string, any>);
+      return parseGameSession(object.json as Record<string, any>);
     },
     refetchInterval: 3_000, // Poll every 3 seconds during active gameplay
   });
@@ -223,57 +226,55 @@ export function useGameState() {
 
 ### Reading an Entity (ECS Components via Dynamic Fields)
 
-ECS entities store components as dynamic fields in a `Bag`. A simple `getObject` won't return them — you need `getDynamicFields` → `multiGetObjects` → type-match.
+ECS entities store components as dynamic fields in a `Bag`. A simple `getObject` won't return them — you need `listDynamicFields` → `getObjects` → type-match.
 
 > [!IMPORTANT]
-> Use `SuiJsonRpcClient` for entity reads. The gRPC `client.core` API does not expose `getDynamicFields`. See [client_api.md](client_api.md#suijsonrpcclient).
+> Use `client.core.listDynamicFields()` for entity reads. This is available on `SuiGrpcClient` Core API.
 
 ```typescript
 // src/hooks/usePlayerEntity.ts
 import { useQuery } from '@tanstack/react-query';
-import { suiClient } from '../lib/suiClient'; // SuiJsonRpcClient
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { parseHealthComponent, parseEnergyComponent, parseDeckComponent } from '../lib/parsers';
 import type { PlayerState } from '../lib/types';
 
 export function usePlayerEntity(entityId: string | null) {
+  const client = useCurrentClient();
   return useQuery<PlayerState>({
     queryKey: ['playerEntity', entityId],
     queryFn: async () => {
       // Step 1: Discover all dynamic fields (components) on the entity
-      const dynFields = await suiClient.getDynamicFields({ parentId: entityId! });
-      if (!dynFields.data?.length) {
+      const dynFields = await client.core.listDynamicFields({ parentId: entityId! });
+      if (!dynFields.dynamicFields?.length) {
         return defaultPlayerState(entityId!);
       }
 
-      // Step 2: Batch-fetch all component objects
-      const objects = await suiClient.multiGetObjects({
-        ids: dynFields.data.map(df => df.objectId),
-        options: { showContent: true, showType: true },
-      });
-
-      // Step 3: Parse components by pattern-matching on type name
+      // Step 2: Fetch each component via getDynamicField
+      // listDynamicFields returns { name, type } per entry — NOT objectId.
+      // Use getDynamicField to get the actual value for each component.
       let health = { current: 0, max: 0 };
       let energy = { current: 0, max: 0, regen: 0 };
       let gold = 0;
       let deck = { drawPile: [], hand: [], discardPile: [] };
 
-      for (const obj of objects) {
-        if (obj.data?.content?.dataType !== 'moveObject') continue;
-
-        const typeName = obj.data.content.type ?? '';
-        const allFields = obj.data.content.fields as Record<string, any>;
-        // Dynamic fields are Field<String, Component> → value is in allFields.value
-        const valueFields = allFields.value?.fields ?? allFields.value ?? allFields;
-
-        if (typeName.includes('Health')) {
-          health = parseHealthComponent(valueFields);
-        } else if (typeName.includes('Energy')) {
-          energy = parseEnergyComponent(valueFields);
-        } else if (typeName.includes('Gold')) {
-          gold = Number(valueFields.amount);
-        } else if (typeName.includes('Deck')) {
-          deck = parseDeckComponent(valueFields);
-        }
+      for (const field of dynFields.dynamicFields) {
+        try {
+          const { dynamicField } = await client.core.getDynamicField({
+            parentId: entityId!,
+            name: field.name,
+          });
+          const typeName = dynamicField.value?.type ?? '';
+          // BCS decode or parse JSON depending on your needs
+          if (typeName.includes('Health')) {
+            health = parseHealthComponent(dynamicField.value);
+          } else if (typeName.includes('Energy')) {
+            energy = parseEnergyComponent(dynamicField.value);
+          } else if (typeName.includes('Gold')) {
+            gold = Number(dynamicField.value);
+          } else if (typeName.includes('Deck')) {
+            deck = parseDeckComponent(dynamicField.value);
+          }
+        } catch { /* field may not exist */ }
       }
 
       return { id: entityId!, health, energy, gold, deck };
@@ -291,21 +292,22 @@ The grid is typically a shared object with dynamic fields for cells:
 ```typescript
 // src/hooks/useGrid.ts
 import { useQuery } from '@tanstack/react-query';
-import { suiClient } from '../lib/suiClient';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { GRID_ID } from '../constants';
 
 export function useGrid() {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['grid', GRID_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({
-        id: GRID_ID,
-        options: { showContent: true },
+      const { object } = await client.core.getObject({
+        objectId: GRID_ID,
+        include: { json: true },
       });
-      if (res.data?.content?.dataType !== 'moveObject') {
+      if (!object?.json) {
         throw new Error('Grid not found');
       }
-      const fields = res.data.content.fields as Record<string, any>;
+      const fields = object.json as Record<string, any>;
       return {
         width: Number(fields.width),
         height: Number(fields.height),
@@ -322,21 +324,21 @@ export function useGrid() {
 ```typescript
 // src/hooks/useTurnState.ts
 import { useQuery } from '@tanstack/react-query';
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { suiClient } from '../lib/suiClient';
+import { useCurrentAccount, useCurrentClient } from '@mysten/dapp-kit-react';
 import { TURN_STATE_ID } from '../constants';
 
 export function useTurnState() {
   const account = useCurrentAccount();
+  const client = useCurrentClient();
 
   const query = useQuery({
     queryKey: ['turnState', TURN_STATE_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({
-        id: TURN_STATE_ID,
-        options: { showContent: true },
+      const { object } = await client.core.getObject({
+        objectId: TURN_STATE_ID,
+        include: { json: true },
       });
-      const fields = res.data?.content?.fields as Record<string, any>;
+      const fields = object?.json as Record<string, any>;
       return {
         currentPlayer: Number(fields.current_player),
         turnNumber: Number(fields.turn_number),
@@ -386,18 +388,19 @@ Batch multiple object reads for efficiency:
 
 ```typescript
 export function useGameObjects() {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['gameObjects'],
     queryFn: async () => {
       const [session, grid, turnState] = await Promise.all([
-        suiClient.getObject({ id: GAME_SESSION_ID, options: { showContent: true } }),
-        suiClient.getObject({ id: GRID_ID, options: { showContent: true } }),
-        suiClient.getObject({ id: TURN_STATE_ID, options: { showContent: true } }),
+        client.core.getObject({ objectId: GAME_SESSION_ID, include: { json: true } }),
+        client.core.getObject({ objectId: GRID_ID, include: { json: true } }),
+        client.core.getObject({ objectId: TURN_STATE_ID, include: { json: true } }),
       ]);
       return {
-        session: parseGameSession(session.data?.content?.fields),
-        grid: parseGrid(grid.data?.content?.fields),
-        turnState: parseTurnState(turnState.data?.content?.fields),
+        session: parseGameSession(session.object?.json),
+        grid: parseGrid(grid.object?.json),
+        turnState: parseTurnState(turnState.object?.json),
       };
     },
     refetchInterval: 3_000,
@@ -412,17 +415,18 @@ Discover entities owned by the connected wallet:
 ```typescript
 export function useMyEntities(packageId: string) {
   const account = useCurrentAccount();
+  const client = useCurrentClient();
 
   return useQuery({
     queryKey: ['myEntities', account?.address],
     queryFn: async () => {
-      const res = await suiClient.getOwnedObjects({
+      const res = await client.core.listOwnedObjects({
         owner: account!.address,
         filter: { StructType: `${packageId}::entity::Entity` },
-        options: { showContent: true },
+        include: { json: true },
       });
-      return res.data?.map((obj) =>
-        parsePlayerEntity(obj.data?.content?.fields as Record<string, any>)
+      return res.objects?.map((obj) =>
+        parsePlayerEntity(obj.json as Record<string, any>)
       ) ?? [];
     },
     enabled: !!account,
@@ -611,7 +615,7 @@ export function useGameState() {
 | Nested structs (Position inside Entity) | `showBcs: true` + BCS schema | Parsed JSON flattens nested structs unpredictably |
 | `vector<SomeStruct>` | `showBcs: true` + BCS schema | Parsed JSON loses struct boundaries in vectors |
 | `Option<T>` | `showBcs: true` + BCS schema | Parsed JSON uses `{ Some: value }` / `null` inconsistently |
-| Dynamic fields | Neither (use `getDynamicFields`) | Dynamic fields aren't in the parent object's BCS |
+| Dynamic fields | `client.core.listDynamicFields` | Dynamic fields aren't in the parent object's BCS |
 
 ### Type Inference
 

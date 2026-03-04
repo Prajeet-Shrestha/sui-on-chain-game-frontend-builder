@@ -68,20 +68,26 @@ declare module '@mysten/dapp-kit-react' {
 ### Entry Point (`src/main.tsx`)
 
 ```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { DAppKitProvider } from '@mysten/dapp-kit-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { dAppKit } from './dApp-kit';
+import App from './App';
+import './index.css';
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 2_000, refetchOnWindowFocus: true } },
+  defaultOptions: { queries: { staleTime: 2_000, refetchOnWindowFocus: false } },
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <QueryClientProvider client={queryClient}>
-    <DAppKitProvider dAppKit={dAppKit}>
-      <App />
-    </DAppKitProvider>
-  </QueryClientProvider>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <DAppKitProvider dAppKit={dAppKit}>
+        <App />
+      </DAppKitProvider>
+    </QueryClientProvider>
+  </StrictMode>,
 );
 ```
 
@@ -90,6 +96,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 ```typescript
 export const PACKAGE_ID = '0xYourPackageId';
 export const WORLD_ID = '0xYourWorldObjectId';
+// Below are EXAMPLES — adapt per game. Some are static shared objects,
+// others are dynamic (discovered from tx events, stored in Zustand).
 export const GRID_ID = '0xYourGridObjectId';
 export const GAME_SESSION_ID = '0xYourGameSessionId';
 export const TURN_STATE_ID = '0xYourTurnStateId';
@@ -143,7 +151,7 @@ export const useUIStore = create<UIStore>((set) => ({
     "target": "ES2023", "lib": ["ES2023"],
     "module": "ESNext", "moduleResolution": "bundler",
     "strict": true, "noEmit": true, "skipLibCheck": true,
-    "verbatimModuleSyntax": true, "types": ["node"]
+    "verbatimModuleSyntax": true
   },
   "include": ["vite.config.ts"]
 }
@@ -175,51 +183,45 @@ createClient(network) {
 
 ---
 
-## 2. Clients — Dual-Client Pattern
+## 2. Clients
 
 | Client | Import | Use For |
 |--------|--------|---------|
-| `SuiGrpcClient` | `@mysten/sui/grpc` | Wallet/tx via dApp Kit |
-| `SuiJsonRpcClient` | `@mysten/sui/jsonRpc` | Data reads (`getObject`, `getDynamicFields`) |
-| `SuiGraphQLClient` | `@mysten/sui/graphql` | Complex filtered/nested queries |
+| `SuiGrpcClient` | `@mysten/sui/grpc` | **Primary** — wallet/tx via dApp Kit, standalone data reads |
+| `SuiGraphQLClient` | `@mysten/sui/graphql` | Complex filtered queries (events, transactions) |
 
-> ⚠️ `SuiClient` from `@mysten/sui/client` is **deprecated**. Use `SuiJsonRpcClient` from `@mysten/sui/jsonRpc`.
+> ⚠️ `SuiClient` from `@mysten/sui/client` and `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` are **deprecated**. JSON-RPC will be decommissioned. Use `SuiGrpcClient` only.
 
 ```typescript
-// src/lib/suiClient.ts — standalone data reader
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+// src/lib/suiClient.ts — standalone gRPC data reader (no wallet needed)
+import { SuiGrpcClient } from '@mysten/sui/grpc';
 
-export const suiClient = new SuiJsonRpcClient({
+export const suiClient = new SuiGrpcClient({
   network: 'testnet',
-  url: getJsonRpcFullnodeUrl('testnet'),
+  baseUrl: 'https://fullnode.testnet.sui.io:443',
 });
 ```
 
 ### Client API Quick Reference
 
 ```typescript
-// gRPC (via useCurrentClient() or dApp Kit) — uses .core namespace
-await client.core.getObject({ objectId, options: { showContent: true } });
-await client.core.multiGetObjects({ ids, options: { showContent: true } });
-await client.core.getOwnedObjects({ owner, filter, options });
+// gRPC Core API (via useCurrentClient() or standalone SuiGrpcClient)
+await client.core.getObject({ objectId, include: { content: true } });
+await client.core.getObjects({ objectIds, include: { content: true } });
+await client.core.listOwnedObjects({ owner, filter?: { StructType }, limit?, include? });
 await client.core.getBalance({ owner, coinType? });
-await client.core.getAllBalances({ owner });
-await client.core.getCoins({ owner, coinType, cursor, limit });
-await client.core.queryEvents({ query, cursor, limit });
-await client.waitForTransaction({ digest, include: { effects: true } });
+await client.core.listBalances({ owner });
+await client.core.listCoins({ owner, coinType, cursor, limit });
+await client.core.listDynamicFields({ parentId, limit? });
+await client.core.getDynamicField({ parentId, name: { type, bcs } });
+await client.core.waitForTransaction({ digest, include: { effects: true } });
 
-// gRPC native services (advanced)
-await client.stateService.listOwnedObjects({ owner: '0x...' });
-await client.ledgerService.getTransaction({ digest: '...' });
+// gRPC native services (advanced — use { response } destructuring)
+const { response } = await client.stateService.listOwnedObjects({ owner: '0x...', objectType: '...' });
+const { response: fields } = await client.stateService.listDynamicFields({ parent: '0x...' });
+const { response: tx } = await client.ledgerService.getTransaction({ digest: '...' });
 
-// JSON-RPC (standalone — also has .core namespace, native methods use `id` not `objectId`)
-await suiClient.getObject({ id, options: { showContent: true } });  // native
-await suiClient.core.getObject({ objectId, options: { showContent: true } });  // core API
-await suiClient.getDynamicFields({ parentId });  // ← NOT available on gRPC
-await suiClient.multiGetObjects({ ids, options: { showContent: true } });
-await suiClient.getOwnedObjects({ owner });
-
-// GraphQL (complex queries)
+// GraphQL (complex queries — events, filtered transactions)
 import { SuiGraphQLClient } from '@mysten/sui/graphql';
 import { graphql } from '@mysten/sui/graphql/schemas/latest';
 const gqlClient = new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' });
@@ -332,7 +334,7 @@ export function useGameActions() {
       throw parseTransactionError(result.FailedTransaction);
     }
 
-    await client.waitForTransaction({
+    await client.core.waitForTransaction({
       digest: result.Transaction.digest,
       include: { effects: true },
     });
@@ -441,7 +443,7 @@ tx.add(increment({ arguments: [counterId] }));
 ### Extracting Created Objects from Effects
 
 ```typescript
-const txResult = await client.waitForTransaction({
+const txResult = await client.core.waitForTransaction({
   digest: result.Transaction.digest,
   include: { effects: true },
 });
@@ -480,15 +482,16 @@ export function parseTransactionError(failure: { error: string }): Error {
 
 ```typescript
 export function useGameState() {
+  const client = useCurrentClient();
   return useQuery<GameSession>({
     queryKey: ['gameSession', GAME_SESSION_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({
-        id: GAME_SESSION_ID,
-        options: { showContent: true },
+      const { object } = await client.core.getObject({
+        objectId: GAME_SESSION_ID,
+        include: { json: true },
       });
-      if (res.data?.content?.dataType !== 'moveObject') throw new Error('Not found');
-      return parseGameSession(res.data.content.fields as Record<string, any>);
+      if (!object?.json) throw new Error('Not found');
+      return parseGameSession(object.json as Record<string, any>);
     },
     refetchInterval: 3_000,
   });
@@ -499,11 +502,12 @@ export function useGameState() {
 
 ```typescript
 export function useGrid() {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['grid', GRID_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({ id: GRID_ID, options: { showContent: true } });
-      const fields = res.data?.content?.fields as Record<string, any>;
+      const { object } = await client.core.getObject({ objectId: GRID_ID, include: { json: true } });
+      const fields = object?.json as Record<string, any>;
       return { width: Number(fields.width), height: Number(fields.height), cells: parseCells(fields.cells) };
     },
     refetchInterval: 3_000,
@@ -516,11 +520,12 @@ export function useGrid() {
 ```typescript
 export function useTurnState() {
   const account = useCurrentAccount();
+  const client = useCurrentClient();
   const query = useQuery({
     queryKey: ['turnState', TURN_STATE_ID],
     queryFn: async () => {
-      const res = await suiClient.getObject({ id: TURN_STATE_ID, options: { showContent: true } });
-      const fields = res.data?.content?.fields as Record<string, any>;
+      const { object } = await client.core.getObject({ objectId: TURN_STATE_ID, include: { json: true } });
+      const fields = object?.json as Record<string, any>;
       return { currentPlayer: Number(fields.current_player), turnNumber: Number(fields.turn_number) };
     },
     refetchInterval: 2_000,
@@ -532,25 +537,24 @@ export function useTurnState() {
 
 ### ECS Entity Components (dynamic fields)
 
-> **Must use `SuiJsonRpcClient`** — gRPC does not expose `getDynamicFields`.
+> Use `client.core.listDynamicFields()` to discover entity components.
 
 ```typescript
 export function usePlayerEntity(entityId: string | null) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['playerEntity', entityId],
     queryFn: async () => {
-      // 1. Discover components
-      const dynFields = await suiClient.getDynamicFields({ parentId: entityId! });
-      // 2. Batch-fetch
-      const objects = await suiClient.multiGetObjects({
-        ids: dynFields.data.map(df => df.objectId),
-        options: { showContent: true, showType: true },
-      });
-      // 3. Parse by type name
-      for (const obj of objects) {
-        const typeName = obj.data?.content?.type ?? '';
-        const fields = obj.data?.content?.fields as Record<string, any>;
-        const value = fields.value?.fields ?? fields.value ?? fields;
+      // 1. Discover components via Core API
+      const dynFields = await client.core.listDynamicFields({ parentId: entityId! });
+      // 2. Fetch each via getDynamicField (listDynamicFields has NO objectId)
+      for (const field of dynFields.dynamicFields) {
+        const { dynamicField } = await client.core.getDynamicField({
+          parentId: entityId!,
+          name: field.name,
+        });
+        const typeName = dynamicField.value?.type ?? '';
+        const value = dynamicField.value;
         if (typeName.includes('Health')) health = { current: Number(value.current), max: Number(value.max) };
         // ... pattern-match other component types
       }
@@ -567,15 +571,16 @@ export function usePlayerEntity(entityId: string | null) {
 ```typescript
 export function useMyEntities(packageId: string) {
   const account = useCurrentAccount();
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['myEntities', account?.address],
     queryFn: async () => {
-      const res = await suiClient.getOwnedObjects({
+      const res = await client.core.listOwnedObjects({
         owner: account!.address,
         filter: { StructType: `${packageId}::entity::Entity` },
-        options: { showContent: true },
+        include: { json: true },
       });
-      return res.data?.map(obj => parsePlayerEntity(obj.data?.content?.fields as Record<string, any>)) ?? [];
+      return res.objects?.map(obj => parsePlayerEntity(obj.json as Record<string, any>)) ?? [];
     },
     enabled: !!account,
     refetchInterval: 5_000,
@@ -587,9 +592,9 @@ export function useMyEntities(packageId: string) {
 
 ```typescript
 const [session, grid, turnState] = await Promise.all([
-  suiClient.getObject({ id: GAME_SESSION_ID, options: { showContent: true } }),
-  suiClient.getObject({ id: GRID_ID, options: { showContent: true } }),
-  suiClient.getObject({ id: TURN_STATE_ID, options: { showContent: true } }),
+  client.core.getObject({ objectId: GAME_SESSION_ID, include: { json: true } }),
+  client.core.getObject({ objectId: GRID_ID, include: { json: true } }),
+  client.core.getObject({ objectId: TURN_STATE_ID, include: { json: true } }),
 ]);
 ```
 
@@ -641,7 +646,7 @@ if (res.data?.bcs?.dataType === 'moveObject') {
 |----------|----------|
 | Flat structs (u64, string) | `showContent: true` + `fields as Record<string, any>` |
 | Nested structs, `vector<Struct>`, `Option<T>` | `showBcs: true` + BCS schema |
-| Dynamic fields (ECS components) | `getDynamicFields` → `multiGetObjects` |
+| Dynamic fields (ECS components) | `client.core.listDynamicFields` → `getObjects` |
 
 ---
 
@@ -677,6 +682,8 @@ catch { queryClient.invalidateQueries({ queryKey: ['grid'] }); throw err; }
 
 ### Events — For Activity Logs, Not State
 
+> ⚠️ `queryEvents` is **NOT** on the Core API or gRPC. Use `SuiGraphQLClient` for event queries.
+
 ```typescript
 // Event types (discriminated union matching Move event structs)
 type GameEvent =
@@ -690,19 +697,20 @@ function parseEventType(typeRepr: string): string | null {
   return match ? match[1] : null;
 }
 
+// Events require GraphQL — not available on gRPC Core API
+// For simple games, skip event log and rely on object polling
+// Example using SuiGraphQLClient:
+// import { SuiGraphQLClient } from '@mysten/sui/graphql';
+// const gqlClient = new SuiGraphQLClient({ url: 'https://sui-testnet.mystenlabs.com/graphql' });
+// const result = await gqlClient.execute(graphql(`query { events(filter: { ... }) { ... } }`));
 export function useGameLog() {
-  const client = useCurrentClient();
+  // NOTE: queryEvents requires GraphQL, not gRPC
+  // This is a placeholder — implement with SuiGraphQLClient or skip for simple games
   return useQuery<GameEvent[]>({
     queryKey: ['gameLog'],
     queryFn: async () => {
-      const res = await client.core.queryEvents({
-        query: { MoveModule: { package: PACKAGE_ID, module: 'game' } },
-        order: 'descending', limit: 50,
-      });
-      return res.data.map(e => {
-        const name = parseEventType(e.type);
-        return name ? { type: name, data: e.parsedJson, timestamp: e.timestampMs ?? '' } : null;
-      }).filter(Boolean) as GameEvent[];
+      // TODO: Implement with SuiGraphQLClient
+      return [];
     },
     refetchInterval: 5_000,
   });
@@ -985,9 +993,9 @@ const res = await client.core.getOwnedObjects({
 | Don't | Do Instead |
 |-------|-----------|
 | `import { ... } from '@mysten/dapp-kit'` | `from '@mysten/dapp-kit-react'` |
-| `import { SuiClient } from '@mysten/sui/client'` | `SuiGrpcClient` or `SuiJsonRpcClient` |
+| `import { SuiClient } from '@mysten/sui/client'` | `SuiGrpcClient` from `@mysten/sui/grpc` |
 | Assume tx success: `result.Transaction.digest` | Check `if (result.FailedTransaction)` first |
-| Read state immediately after tx | `await client.waitForTransaction(...)` first |
+| Read state immediately after tx | `await client.core.waitForTransaction(...)` first |
 | Create clients inside components | Use `useCurrentClient()` hook |
 | Skip type registration | Add `declare module '@mysten/dapp-kit-react'` block |
 | Use BCS when `tx.pure.*` exists | Use `tx.pure.u64(42)` not `bcs.u64().serialize(42n)` |
@@ -1021,7 +1029,7 @@ Read `sources/game.move` → extract structs, consts, public fns, shared objects
 | 4 | `tsconfig.json` + `tsconfig.app.json` + `tsconfig.node.json` | |
 | 5 | `src/main.tsx` | Providers (unchanged) |
 | 6 | `src/dApp-kit.ts` | createDAppKit + type registration |
-| 7 | `src/lib/suiClient.ts` | SuiJsonRpcClient |
+| 7 | `src/lib/suiClient.ts` | Standalone SuiGrpcClient |
 | 8 | `src/stores/uiStore.ts` | Zustand UI state |
 
 ### Phase 3: Contract Integration (generated from contract)

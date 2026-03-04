@@ -24,7 +24,7 @@ The game logic lives **entirely on-chain** (Move contracts). The frontend is a *
 You are **composing** the Sui TypeScript SDK, not reimplementing blockchain primitives.
 Always use `@mysten/dapp-kit-react` for React hooks/components AND `createDAppKit`, `@mysten/sui` for transactions/clients.
 **Never** reference the legacy `@mysten/dapp-kit` or `SuiClient` from `@mysten/sui/client`.
-`SuiJsonRpcClient` from `@mysten/sui/jsonRpc` **is valid** for data reads — see [client_api.md](references/client_api.md).
+`SuiJsonRpcClient` from `@mysten/sui/jsonRpc` is **deprecated** — use `SuiGrpcClient` from `@mysten/sui/grpc` only.
 
 **Always:**
 - Use **Vite + React + TypeScript** (no Next.js — games are client-only SPAs)
@@ -43,7 +43,7 @@ Always use `@mysten/dapp-kit-react` for React hooks/components AND `createDAppKi
 
 | Package | Import From | Purpose |
 |---------|------------|---------|
-| `@mysten/sui` | `@mysten/sui/transactions`, `@mysten/sui/grpc`, `@mysten/sui/jsonRpc`, etc. | Core SDK — transactions, clients, BCS, utils |
+| `@mysten/sui` | `@mysten/sui/transactions`, `@mysten/sui/grpc`, etc. | Core SDK — transactions, clients, BCS, utils |
 | `@mysten/dapp-kit-react` | `@mysten/dapp-kit-react` | React hooks, components, provider |
 | `@mysten/dapp-kit-core` | `@mysten/dapp-kit-core` | Framework-agnostic core — **transitive** via dapp-kit-react, don't add to package.json. In React apps, import `createDAppKit` from `@mysten/dapp-kit-react` instead. |
 | `@tanstack/react-query` | `@tanstack/react-query` | Data fetching, caching, polling |
@@ -69,7 +69,7 @@ See [contract_integration.md](references/contract_integration.md) for the full w
 ```
 Move struct   → lib/types.ts      (TypeScript interfaces)
 Move consts   → constants.ts      (states, error codes, IDs)
-Move fields   → lib/parsers.ts    (JSON-RPC → typed objects)
+Move fields   → lib/parsers.ts    (gRPC → typed objects)
 Move pub funs → hooks/useGameActions.ts  (PTB builders)
 ```
 
@@ -102,7 +102,7 @@ Drop-in files extracted from 8 working game frontends:
 | Build and execute transactions (PTB) | [transaction_patterns.md](references/transaction_patterns.md) |
 | Query objects, balances, dynamic fields | [reading_data.md](references/reading_data.md) |
 | Add wallet connect UI, manage connection | [wallet_patterns.md](references/wallet_patterns.md) |
-| Configure SuiGrpcClient, SuiJsonRpcClient, or GraphQL | [client_api.md](references/client_api.md) |
+| Configure SuiGrpcClient or GraphQL | [client_api.md](references/client_api.md) |
 | Keep game state fresh (polling, events, post-tx refresh) | [realtime_patterns.md](references/realtime_patterns.md) |
 | Build game UI components & optimize perf | [ui_patterns.md](references/ui_patterns.md) |
 | Format addresses, validate IDs, convert units | [utils.md](references/utils.md) |

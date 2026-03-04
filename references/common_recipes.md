@@ -29,7 +29,7 @@ function SendSui() {
       return;
     }
 
-    await client.waitForTransaction({ digest: result.Transaction.digest });
+    await client.core.waitForTransaction({ digest: result.Transaction.digest });
     console.log('Sent! Digest:', result.Transaction.digest);
   }
 
@@ -70,7 +70,7 @@ function CallMoveFunction() {
       throw new Error('Transaction failed');
     }
 
-    await client.waitForTransaction({
+    await client.core.waitForTransaction({
       digest: result.Transaction.digest,
       include: { effects: true },
     });
@@ -187,7 +187,7 @@ function MintNFT() {
       throw new Error('Mint failed');
     }
 
-    const txResult = await client.waitForTransaction({
+    const txResult = await client.core.waitForTransaction({
       digest: result.Transaction.digest,
       include: { effects: true },
     });
@@ -226,7 +226,7 @@ function TransferObject({ objectId }: { objectId: string }) {
       throw new Error('Transfer failed');
     }
 
-    await client.waitForTransaction({ digest: result.Transaction.digest });
+    await client.core.waitForTransaction({ digest: result.Transaction.digest });
     console.log('Transferred!');
   }
 
@@ -297,7 +297,7 @@ function IncrementCounter({ counterId }: { counterId: string }) {
       throw new Error('Increment failed');
     }
 
-    await client.waitForTransaction({ digest: result.Transaction.digest });
+    await client.core.waitForTransaction({ digest: result.Transaction.digest });
   }
 
   return <button onClick={doIncrement}>Increment</button>;
@@ -308,19 +308,11 @@ function IncrementCounter({ counterId }: { counterId: string }) {
 
 ## 9. Read ECS Entity Components
 
-ECS entities store components as dynamic fields in a `Bag`. Use `getDynamicFields` → `multiGetObjects` → type-match to read them.
-
-> [!NOTE]
-> Requires `SuiJsonRpcClient` — see [client_api.md](client_api.md#suijsonrpcclient) for setup.
+ECS entities store components as dynamic fields in a `Bag`. Use `client.core.listDynamicFields` → `getObjects` → type-match to read them.
 
 ```tsx
 import { useQuery } from '@tanstack/react-query';
-import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-
-const suiClient = new SuiJsonRpcClient({
-  network: 'testnet',
-  url: getJsonRpcFullnodeUrl('testnet'),
-});
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 
 interface EntityComponents {
   health: { current: number; max: number };
@@ -329,36 +321,35 @@ interface EntityComponents {
 }
 
 function useEntityComponents(entityId: string | null) {
+  const client = useCurrentClient();
   return useQuery<EntityComponents>({
     queryKey: ['entity', entityId],
     queryFn: async () => {
-      // 1. Discover dynamic fields
-      const dynFields = await suiClient.getDynamicFields({ parentId: entityId! });
+      // 1. Discover dynamic fields via Core API
+      const dynFields = await client.core.listDynamicFields({ parentId: entityId! });
 
-      // 2. Batch-fetch all component objects
-      const objects = await suiClient.multiGetObjects({
-        ids: dynFields.data.map(df => df.objectId),
-        options: { showContent: true, showType: true },
-      });
-
-      // 3. Parse by type name
+      // 2. Fetch each component via getDynamicField
+      // NOTE: listDynamicFields returns { name, type } per entry — NOT objectId.
       let health = { current: 0, max: 0 };
       let energy = { current: 0, max: 0 };
       let gold = 0;
 
-      for (const obj of objects) {
-        if (obj.data?.content?.dataType !== 'moveObject') continue;
-        const type = obj.data.content.type ?? '';
-        const fields = obj.data.content.fields as Record<string, any>;
-        const value = fields.value?.fields ?? fields.value ?? fields;
+      for (const field of dynFields.dynamicFields) {
+        try {
+          const { dynamicField } = await client.core.getDynamicField({
+            parentId: entityId!,
+            name: field.name,
+          });
+          const typeName = dynamicField.value?.type ?? '';
+          const value = dynamicField.value;
 
-        if (type.includes('Health')) {
-          health = { current: Number(value.current), max: Number(value.max) };
-        } else if (type.includes('Energy')) {
-          energy = { current: Number(value.current), max: Number(value.max) };
-        } else if (type.includes('Gold')) {
-          gold = Number(value.amount);
-        }
+          if (typeName.includes('Health')) {
+            health = { current: Number(value.current), max: Number(value.max) };
+          } else if (typeName.includes('Energy')) {
+            energy = { current: Number(value.current), max: Number(value.max) };
+          } else if (typeName.includes('Gold')) {
+            gold = Number(value.amount);
+          }
       }
 
       return { health, energy, gold };

@@ -104,7 +104,7 @@ async function executeAndRefresh(tx: Transaction) {
   const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
   if (result.FailedTransaction) throw new Error('Failed');
 
-  await client.waitForTransaction({ digest: result.Transaction.digest });
+  await client.core.waitForTransaction({ digest: result.Transaction.digest });
 
   // Use refetchQueries for games — forces immediate re-fetch
   await Promise.all([
@@ -117,7 +117,7 @@ async function executeAndRefresh(tx: Transaction) {
 ```
 
 > [!TIP]
-> **Blind-delay fallback:** If you're using `SuiJsonRpcClient` for data reads and `waitForTransaction` isn't available on it, replace the `waitForTransaction` call with `await new Promise(r => setTimeout(r, 2000))`. This is less precise (wastes time on fast days, may fail on slow indexer days) but is a pragmatic workaround. See [game_transactions.md](game_transactions.md) for the full pattern.
+> **Blind-delay fallback:** If `waitForTransaction` isn't available, replace it with `await new Promise(r => setTimeout(r, 2000))`. This is less precise but is a pragmatic workaround. See [game_transactions.md](game_transactions.md) for the full pattern.
 
 ---
 
@@ -195,32 +195,27 @@ export function parseGameEvent(node: {
 
 ### Poll Events for Activity Log
 
+> ⚠️ `queryEvents` is **NOT** on the Core API (`client.core`). Use the standalone
+> `SuiGraphQLClient` for event queries. Events are NOT available on gRPC.
+
 ```typescript
 // src/hooks/useGameLog.ts
 import { useQuery } from '@tanstack/react-query';
-import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { PACKAGE_ID } from '../constants';
 import { parseGameEvent, type GameEvent } from '../lib/events';
 
+// Events require GraphQL — not available on gRPC Core API
+// For simple games, skip event log and rely on object polling
+// Example: implement with SuiGraphQLClient for filtered event queries
 export function useGameLog() {
-  const client = useCurrentClient();
-
+  // NOTE: queryEvents requires GraphQL, not gRPC
   return useQuery<GameEvent[]>({
     queryKey: ['gameLog', PACKAGE_ID],
     queryFn: async () => {
-      const res = await client.core.queryEvents({
-        query: { MoveModule: { package: PACKAGE_ID, module: 'game' } },
-        order: 'descending',
-        limit: 50,
-      });
-
-      return (res.data ?? [])
-        .map((event) => parseGameEvent({
-          type: { repr: event.type },
-          json: event.parsedJson,
-          timestamp: event.timestampMs ?? '',
-        }))
-        .filter((e): e is GameEvent => e !== null);
+      // TODO: Implement with SuiGraphQLClient
+      // const gqlClient = new SuiGraphQLClient({ url: '...' });
+      // const result = await gqlClient.execute(graphql(`query { events ... }`));
+      return [];
     },
     refetchInterval: 5_000, // Activity log doesn't need fast polling
   });
