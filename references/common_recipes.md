@@ -24,7 +24,7 @@ function SendSui() {
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       console.error('Failed:', result.FailedTransaction);
       return;
     }
@@ -66,7 +66,7 @@ function CallMoveFunction() {
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       throw new Error('Transaction failed');
     }
 
@@ -183,7 +183,7 @@ function MintNFT() {
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       throw new Error('Mint failed');
     }
 
@@ -192,7 +192,7 @@ function MintNFT() {
       include: { effects: true },
     });
 
-    if (txResult.$kind === 'Transaction') {
+    if (txResult.Transaction) {
       const created = txResult.Transaction.effects?.changedObjects?.find(
         (obj: any) => obj.idOperation === 'Created',
       );
@@ -222,7 +222,7 @@ function TransferObject({ objectId }: { objectId: string }) {
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       throw new Error('Transfer failed');
     }
 
@@ -293,7 +293,7 @@ function IncrementCounter({ counterId }: { counterId: string }) {
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       throw new Error('Increment failed');
     }
 

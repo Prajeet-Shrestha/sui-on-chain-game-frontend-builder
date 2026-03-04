@@ -142,7 +142,8 @@ Now create game-specific components:
 ### App.tsx Pattern
 
 ```tsx
-import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { useUIStore } from './stores/uiStore';
 import { useGameSession } from './hooks/useGameSession';
 // import game components...

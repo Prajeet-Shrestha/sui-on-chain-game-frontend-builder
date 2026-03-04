@@ -6,7 +6,8 @@ Structure the app around game states:
 
 ```tsx
 // src/App.tsx
-import { ConnectButton, useCurrentAccount } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
+import { useCurrentAccount } from '@mysten/dapp-kit-react';
 import { useGameState } from './hooks/useGameState';
 
 function App() {

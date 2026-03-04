@@ -198,7 +198,7 @@ export const suiClient = new SuiJsonRpcClient({
 });
 
 // src/dApp-kit.ts — wallet/tx via gRPC
-import { createDAppKit } from '@mysten/dapp-kit-core';
+import { createDAppKit } from '@mysten/dapp-kit-react';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export const dAppKit = createDAppKit({

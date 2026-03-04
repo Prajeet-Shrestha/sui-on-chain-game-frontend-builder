@@ -7,7 +7,7 @@ Sui dApp Kit configuration + type registration. Two variants exist across games.
 Used by: virus_game, sokoban, flappy_bird, maze_game, tactics_ogre
 
 ```typescript
-import { createDAppKit } from '@mysten/dapp-kit-core';
+import { createDAppKit } from '@mysten/dapp-kit-react';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 const GRPC_URLS: Record<string, string> = {
@@ -28,7 +28,7 @@ export const dAppKit = createDAppKit({
 });
 
 // REQUIRED — enables typed hooks (useCurrentNetwork returns 'testnet' | 'devnet')
-declare module '@mysten/dapp-kit-core' {
+declare module '@mysten/dapp-kit-react' {
     interface Register {
         dAppKit: typeof dAppKit;
     }
@@ -40,7 +40,7 @@ declare module '@mysten/dapp-kit-core' {
 Used by: tetris_game, sandbox_game, card_crawler
 
 ```typescript
-import { createDAppKit } from '@mysten/dapp-kit-core';
+import { createDAppKit } from '@mysten/dapp-kit-react';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 export const dAppKit = createDAppKit({
@@ -52,7 +52,7 @@ export const dAppKit = createDAppKit({
     },
 });
 
-declare module '@mysten/dapp-kit-core' {
+declare module '@mysten/dapp-kit-react' {
     interface Register {
         dAppKit: typeof dAppKit;
     }

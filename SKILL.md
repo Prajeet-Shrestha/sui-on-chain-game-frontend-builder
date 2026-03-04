@@ -22,7 +22,7 @@ You are building a **React UI** that reads on-chain game state and submits game 
 The game logic lives **entirely on-chain** (Move contracts). The frontend is a **view + action layer**, never a game engine.
 
 You are **composing** the Sui TypeScript SDK, not reimplementing blockchain primitives.
-Always use `@mysten/dapp-kit-react` for React hooks/components, `@mysten/dapp-kit-core` for `createDAppKit`, `@mysten/sui` for transactions/clients.
+Always use `@mysten/dapp-kit-react` for React hooks/components AND `createDAppKit`, `@mysten/sui` for transactions/clients.
 **Never** reference the legacy `@mysten/dapp-kit` or `SuiClient` from `@mysten/sui/client`.
 `SuiJsonRpcClient` from `@mysten/sui/jsonRpc` **is valid** for data reads — see [client_api.md](references/client_api.md).
 
@@ -45,7 +45,7 @@ Always use `@mysten/dapp-kit-react` for React hooks/components, `@mysten/dapp-ki
 |---------|------------|---------|
 | `@mysten/sui` | `@mysten/sui/transactions`, `@mysten/sui/grpc`, `@mysten/sui/jsonRpc`, etc. | Core SDK — transactions, clients, BCS, utils |
 | `@mysten/dapp-kit-react` | `@mysten/dapp-kit-react` | React hooks, components, provider |
-| `@mysten/dapp-kit-core` | `@mysten/dapp-kit-core` | Core (`createDAppKit`) — **transitive**, don't add to package.json |
+| `@mysten/dapp-kit-core` | `@mysten/dapp-kit-core` | Framework-agnostic core — **transitive** via dapp-kit-react, don't add to package.json. In React apps, import `createDAppKit` from `@mysten/dapp-kit-react` instead. |
 | `@tanstack/react-query` | `@tanstack/react-query` | Data fetching, caching, polling |
 | `zustand` | `zustand` | Client-side UI state (selected entity, modals) |
 

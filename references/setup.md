@@ -27,7 +27,7 @@ npm i lucide-react               # Icons
 Create a file `src/dApp-kit.ts`:
 
 ```typescript
-import { createDAppKit } from '@mysten/dapp-kit-core';
+import { createDAppKit } from '@mysten/dapp-kit-react';
 import { SuiGrpcClient } from '@mysten/sui/grpc';
 
 const GRPC_URLS = {
@@ -46,7 +46,7 @@ export const dAppKit = createDAppKit({
 });
 
 // REQUIRED: Global type registration for hook inference
-declare module '@mysten/dapp-kit-core' {
+declare module '@mysten/dapp-kit-react' {
   interface Register {
     dAppKit: typeof dAppKit;
   }
@@ -172,7 +172,7 @@ The `declare module` block augments the `Register` interface so that all hooks (
 ```typescript
 // This makes useCurrentNetwork() return 'mainnet' | 'testnet' | 'devnet'
 // instead of just `string`
-declare module '@mysten/dapp-kit-core' {
+declare module '@mysten/dapp-kit-react' {
   interface Register {
     dAppKit: typeof dAppKit;
   }

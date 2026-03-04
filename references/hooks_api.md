@@ -42,7 +42,7 @@ function MyComponent() {
 | `connectWallet(args)` | `Promise<{ accounts }>` | Connect to a wallet |
 | `disconnectWallet()` | `Promise<void>` | Disconnect current wallet |
 | `signTransaction(args)` | `Promise<SignedTransaction>` | Sign without executing |
-| `signAndExecuteTransaction(args)` | `Promise<Result>` | Sign + execute, returns `{ $kind, ... }` |
+| `signAndExecuteTransaction(args)` | `Promise<Result>` | Sign + execute, check `result.FailedTransaction` or `result.Transaction` |
 | `signPersonalMessage(args)` | `Promise<SignedPersonalMessage>` | Sign an arbitrary message |
 | `switchAccount(args)` | `void` | Switch to a different account |
 | `switchNetwork(network)` | `void` | Switch active network |

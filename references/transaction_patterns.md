@@ -138,7 +138,7 @@ function MyComponent() {
     });
 
     // ALWAYS check for failure
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       console.error('Transaction failed:', result.FailedTransaction);
       return;
     }
@@ -152,7 +152,7 @@ function MyComponent() {
       include: { effects: true },
     });
 
-    if (txResult.$kind === 'FailedTransaction') {
+    if (txResult.FailedTransaction) {
       console.error('Transaction failed after waiting');
       return;
     }
@@ -171,17 +171,17 @@ const signedTx = await dAppKit.signTransaction({ transaction: tx });
 
 ## Result Discrimination
 
-Transaction results use a discriminated union via `$kind`:
+Transaction results use a discriminated union:
 
 ```typescript
 const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-if (result.$kind === 'FailedTransaction') {
+if (result.FailedTransaction) {
   // result.FailedTransaction contains error info
   throw new Error('Transaction failed');
 }
 
-// result.$kind === 'Transaction'
+// Success path
 const { digest, effects } = result.Transaction;
 ```
 
@@ -193,7 +193,7 @@ const txResult = await client.waitForTransaction({
   include: { effects: true },
 });
 
-if (txResult.$kind === 'Transaction') {
+if (txResult.Transaction) {
   const created = txResult.Transaction.effects?.changedObjects?.find(
     (obj) => obj.idOperation === 'Created',
   );
@@ -255,7 +255,7 @@ export function useGameActions() {
   async function executeAndRefresh(tx: Transaction) {
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
       throw parseTransactionError(result.FailedTransaction);
     }
 
@@ -469,14 +469,14 @@ joinGame: async () => {
   });
 
   const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-  if (result.$kind === 'FailedTransaction') throw new Error('Failed to join');
+  if (result.FailedTransaction) throw new Error('Failed to join');
 
   const txResult = await client.waitForTransaction({
     digest: result.Transaction.digest,
     include: { effects: true },
   });
 
-  if (txResult.$kind === 'FailedTransaction') throw new Error('Failed');
+  if (txResult.FailedTransaction) throw new Error('Failed');
 
   const created = txResult.Transaction.effects?.changedObjects?.find(
     (obj: any) => obj.idOperation === 'Created',

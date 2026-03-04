@@ -38,7 +38,7 @@ export function useGameActions() {
         try {
             const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 
-            if (result.$kind === 'FailedTransaction') {
+            if (result.FailedTransaction) {
                 throw parseTransactionError(result.FailedTransaction as any);
             }
 
@@ -89,7 +89,7 @@ startLevel: async (levelId: number) => {
     tx.moveCall({ ... });
 
     const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-    if (result.$kind === 'FailedTransaction') {
+    if (result.FailedTransaction) {
         throw parseTransactionError(result.FailedTransaction as any);
     }
 

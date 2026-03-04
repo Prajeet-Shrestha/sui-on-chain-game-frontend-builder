@@ -9,7 +9,7 @@
 import { ConnectButton } from '@mysten/dapp-kit';
 
 // ✅ CORRECT — new package
-import { ConnectButton } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 ```
 
 ### Don't use the legacy `SuiClient` from `@mysten/sui/client`
@@ -38,9 +38,9 @@ const client = new SuiJsonRpcClient({ network: 'testnet', url: getJsonRpcFullnod
 const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
 const digest = result.Transaction.digest; // 💥 crashes if failed
 
-// ✅ CORRECT — check $kind discriminator
+// ✅ CORRECT — check FailedTransaction
 const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-if (result.$kind === 'FailedTransaction') {
+if (result.FailedTransaction) {
   console.error('Failed:', result.FailedTransaction);
   return;
 }
@@ -67,7 +67,7 @@ const obj = await client.core.getObject({ objectId: '0x...' }); // stale!
 
 // ✅ CORRECT — wait for transaction finality first
 const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-if (result.$kind === 'FailedTransaction') return;
+if (result.FailedTransaction) return;
 await client.waitForTransaction({ digest: result.Transaction.digest });
 const obj = await client.core.getObject({ objectId: '0x...' }); // fresh!
 ```
@@ -115,11 +115,11 @@ tx.pure.u64(42);
 
 ## ✅ Do's
 
-### Always check `result.$kind` after transactions
+### Always check `result.FailedTransaction` after transactions
 
 ```typescript
 const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-if (result.$kind === 'FailedTransaction') {
+if (result.FailedTransaction) {
   // Handle error
   return;
 }

@@ -102,7 +102,7 @@ Always refetch after your own transaction succeeds:
 ```typescript
 async function executeAndRefresh(tx: Transaction) {
   const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-  if (result.$kind === 'FailedTransaction') throw new Error('Failed');
+  if (result.FailedTransaction) throw new Error('Failed');
 
   await client.waitForTransaction({ digest: result.Transaction.digest });
 

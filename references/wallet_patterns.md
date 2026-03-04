@@ -7,7 +7,7 @@
 All-in-one connect/disconnect button (renders as a Lit web component wrapped for React):
 
 ```tsx
-import { ConnectButton } from '@mysten/dapp-kit-react';
+import { ConnectButton } from '@mysten/dapp-kit-react/ui';
 
 function Header() {
   return (
