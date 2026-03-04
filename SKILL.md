@@ -45,7 +45,7 @@ Always use `@mysten/dapp-kit-react` for React hooks/components, `@mysten/dapp-ki
 |---------|------------|---------|
 | `@mysten/sui` | `@mysten/sui/transactions`, `@mysten/sui/grpc`, `@mysten/sui/jsonRpc`, etc. | Core SDK — transactions, clients, BCS, utils |
 | `@mysten/dapp-kit-react` | `@mysten/dapp-kit-react` | React hooks, components, provider |
-| `@mysten/dapp-kit-core` | `@mysten/dapp-kit-core` | Framework-agnostic core (`createDAppKit`) |
+| `@mysten/dapp-kit-core` | `@mysten/dapp-kit-core` | Core (`createDAppKit`) — **transitive**, don't add to package.json |
 | `@tanstack/react-query` | `@tanstack/react-query` | Data fetching, caching, polling |
 | `zustand` | `zustand` | Client-side UI state (selected entity, modals) |
 
